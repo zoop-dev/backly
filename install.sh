@@ -14,11 +14,70 @@ printf '\n  \033[38;2;77;163;255m┌─────┐\033[0m\n'
 printf '  \033[38;2;77;163;255m│ ▓▓▓ │\033[0m  backly installer\n'
 printf '  \033[38;2;77;163;255m└─────┘\033[0m\n\n'
 
-command -v node >/dev/null 2>&1 || die "node is required (v$MIN_NODE+). See https://nodejs.org"
+SUDO=""
+[ "$(id -u)" -eq 0 ] || SUDO="sudo"
 
-NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
-[ "$NODE_MAJOR" -ge "$MIN_NODE" ] || die "node v$MIN_NODE+ required, found v$NODE_MAJOR"
-ok "node v$NODE_MAJOR"
+node_install_cmd() {
+  if   command -v apt-get >/dev/null 2>&1; then echo "$SUDO apt-get install -y nodejs npm"
+  elif command -v dnf     >/dev/null 2>&1; then echo "$SUDO dnf install -y nodejs"
+  elif command -v pacman  >/dev/null 2>&1; then echo "$SUDO pacman -S --noconfirm nodejs npm"
+  elif command -v zypper  >/dev/null 2>&1; then echo "$SUDO zypper install -y nodejs"
+  elif command -v apk     >/dev/null 2>&1; then echo "$SUDO apk add nodejs npm"
+  elif command -v brew    >/dev/null 2>&1; then echo "brew install node"
+  else echo ""
+  fi
+}
+
+# Prompt via /dev/tty: under `curl | sh` stdin is the script itself, so reading
+# from it would swallow the rest of the installer. No tty means no prompting.
+ask_yn() {
+  # -r alone isn't enough: /dev/tty can exist yet fail to open when there's no
+  # controlling terminal, so actually try it (quietly) before prompting.
+  # The probe runs in a subshell because a redirection failure on a special
+  # builtin like ":" makes a non-interactive POSIX shell exit outright.
+  ( true > /dev/tty ) 2>/dev/null || return 1
+  printf '  \033[38;2;77;163;255m?\033[0m %s [y/N]: ' "$1" > /dev/tty 2>/dev/null
+  read -r reply < /dev/tty 2>/dev/null || return 1
+  case "$reply" in [Yy]*) return 0 ;; *) return 1 ;; esac
+}
+
+node_major() { node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0; }
+
+if command -v node >/dev/null 2>&1 && [ "$(node_major)" -ge "$MIN_NODE" ]; then
+  ok "node v$(node_major)"
+else
+  if command -v node >/dev/null 2>&1; then
+    warn "node v$(node_major) found, but backly needs v$MIN_NODE+"
+  else
+    warn "node is not installed (backly needs v$MIN_NODE+)"
+  fi
+
+  INSTALL_CMD=$(node_install_cmd)
+  if [ -z "$INSTALL_CMD" ]; then
+    say "no supported package manager found — install node yourself:"
+    printf '\n      https://nodejs.org/en/download\n\n'
+    exit 1
+  fi
+
+  if ask_yn "install node now with: $INSTALL_CMD ?"; then
+    say "installing node…"
+    if command -v apt-get >/dev/null 2>&1; then $SUDO apt-get update -qq || true; fi
+    # shellcheck disable=SC2086
+    $INSTALL_CMD || die "node install failed — run it yourself and re-run this installer"
+    command -v node >/dev/null 2>&1 || die "node still not on PATH after install"
+    if [ "$(node_major)" -lt "$MIN_NODE" ]; then
+      warn "your package manager installed node v$(node_major), older than v$MIN_NODE"
+      say "get a current version from https://nodejs.org or use nvm, then re-run this installer"
+      exit 1
+    fi
+    ok "node v$(node_major)"
+  else
+    say "no problem — install node with:"
+    printf '\n      %s\n\n' "$INSTALL_CMD"
+    say "then re-run this installer."
+    exit 1
+  fi
+fi
 
 SRC=""
 TMP=""
