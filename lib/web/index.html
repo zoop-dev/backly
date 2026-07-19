@@ -113,7 +113,7 @@
   <header>
     <div class="mark">▓</div>
     <div>
-      <h1>backly</h1>
+      <h1>backly <span id="ver" class="meta" style="font-weight:400"></span></h1>
       <div class="sub" id="dest">—</div>
     </div>
   </header>
@@ -287,6 +287,7 @@ async function refresh() {
   const s = await r.json();
 
   $("dest").textContent = s.shortDest;
+  $("ver").textContent = s.version ? "v" + s.version : "";
   if (document.activeElement !== $("destIn")) $("destIn").value = s.dest;
   if (document.activeElement !== $("exIn")) $("exIn").value = (s.exclude || []).join(", ");
   if (document.activeElement !== $("defMode")) $("defMode").value = s.defaultMode || "snapshot";

@@ -15,7 +15,7 @@ import {
 } from "../lib/vault.js";
 import { scheduleStatus, scheduleOn, scheduleOff } from "../lib/schedule.js";
 import {
-  installRoot, isDevCheckout, findLinks, checkUpdate, applyUpdate, removeInstall,
+  installRoot, isDevCheckout, findLinks, checkUpdate, applyUpdate, removeInstall, currentVersion,
 } from "../lib/selfupdate.js";
 import { CFG_DIR } from "../lib/vault.js";
 
@@ -540,6 +540,15 @@ async function cmdMode(value) {
     c.dim(`   applies to ${inherit} project${inherit === 1 ? "" : "s"} without their own mode`) + "\n");
 }
 
+async function cmdVersion() {
+  const [v, root] = await Promise.all([currentVersion(), installRoot()]);
+  const dev = await isDevCheckout(root);
+  console.log("\n  " + c.bold(c.br("backly")) + " " + c.bold("v" + v) +
+    (dev ? c.dim("  (working copy)") : ""));
+  console.log("  " + c.dim("node ") + c.grey(process.version) +
+    c.dim("  ·  ") + c.grey(shortHome(root)) + "\n");
+}
+
 async function cmdUpdate(...rest) {
   const force = rest.includes("--force") || rest.includes("-f");
   const root = await installRoot();
@@ -640,8 +649,8 @@ async function cmdWeb(...rest) {
   await new Promise(() => {});
 }
 
-function help() {
-  banner();
+async function help() {
+  banner(await currentVersion().catch(() => ""));
   const row = (cmd, desc) => "    " + c.cyan(cmd) + " ".repeat(Math.max(2, 34 - cmd.length)) + c.dim(desc);
   const section = (title, rows) => { console.log("\n  " + c.br("▸ ") + c.bold(title)); rows.forEach(([a, b]) => console.log(row(a, b))); };
   console.log("  " + c.dim("usage  ") + c.bold("backly") + c.dim(" <command> [args]"));
@@ -660,6 +669,7 @@ function help() {
     ["once <path> [--name n]", "one-time snapshot of an unregistered path"],
     ["auto [on [iv] | off | status]", "schedule backups (daily by default)"],
     ["web [--port N]", "local control panel in your browser"],
+    ["version", "show the installed version"],
     ["update", "fetch and install the latest version"],
     ["uninstall", "remove backly (keeps your backups)"],
   ]);
@@ -700,6 +710,7 @@ const table = {
   auto: () => cmdAuto(...args),
   mode: () => cmdMode(args[0]),
   edit: () => cmdEdit(...args),
+  version: () => cmdVersion(), "--version": () => cmdVersion(), "-v": () => cmdVersion(),
   update: () => cmdUpdate(...args), upgrade: () => cmdUpdate(...args),
   uninstall: () => cmdUninstall(...args),
   web: () => cmdWeb(...args), ui: () => cmdWeb(...args),

@@ -1,7 +1,7 @@
 {
   "name": "backly",
-  "version": "0.1.0",
-  "description": "A simple code backup CLI — register paths, snapshot them to a local/external dir as compressed archives.",
+  "version": "1.0.0",
+  "description": "A small code backup CLI — snapshot or mirror folders to a local drive or NAS, with a local web control panel.",
   "type": "module",
   "bin": {
     "backly": "./bin/backly.js"
