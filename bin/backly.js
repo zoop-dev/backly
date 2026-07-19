@@ -569,9 +569,11 @@ async function cmdUpdate(...rest) {
 
   if (!res.changed.length) {
     await rm(res.staged, { recursive: true, force: true }).catch(() => {});
-    console.log("    " + ok + c.green("  already up to date") + "\n");
+    console.log("    " + ok + c.green("  already up to date") + c.dim("  · v" + res.from) + "\n");
     return;
   }
+  console.log("    " + dot + " " + c.bold("v" + res.from) + c.dim(" → ") + c.bold(c.br("v" + res.to)) +
+    (res.from === res.to ? c.dim("   (same version, contents changed)") : ""));
   console.log("    " + dot + c.dim(` ${res.changed.length} file(s) differ:`));
   for (const f of res.changed.slice(0, 8)) console.log("      " + c.grey(f));
   if (res.changed.length > 8) console.log("      " + c.dim(`… and ${res.changed.length - 8} more`));
@@ -583,7 +585,8 @@ async function cmdUpdate(...rest) {
   }
   await applyUpdate(res.staged, res.root);
   header("updated");
-  console.log("    " + ok + c.green(`  ${res.changed.length} file(s) updated`) + c.dim("  · run ") + c.cyan("backly help") + "\n");
+  console.log("    " + ok + c.green(`  now on v${res.to}`) +
+    c.dim(`  · ${res.changed.length} file(s) updated · run `) + c.cyan("backly help") + "\n");
 }
 
 async function cmdUninstall(...rest) {

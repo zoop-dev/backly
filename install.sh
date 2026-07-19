@@ -114,6 +114,11 @@ fi
 
 [ -f "$SRC/bin/backly.js" ] || die "download looks incomplete — no bin/backly.js"
 
+# Parsed with sed rather than node so the version is reported even if the
+# package.json is odd in some way that would make a require() blow up.
+VERSION=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$SRC/package.json" 2>/dev/null | head -1)
+[ -n "$VERSION" ] && ok "backly v$VERSION"
+
 if [ "$(id -u)" -eq 0 ]; then
   LIBDIR="/usr/local/lib/backly"
   BINDIR="/usr/local/bin"

@@ -456,9 +456,10 @@ $("updBtn").onclick = async () => {
   $("updBtn").disabled = true;
   try {
     const r = await post("update", { apply: false });
-    if (r.changed.length && confirm(`${r.changed.length} file(s) differ. Install the update now?`)) {
+    if (r.changed.length && confirm(
+        `v${r.from} → v${r.to}\n${r.changed.length} file(s) differ. Install the update now?`)) {
       const a = await post("update", { apply: true });
-      if (a.applied) logLine("update installed — restart `backly web` to load it", "ok");
+      if (a.applied) logLine(`updated to v${a.to} — restart \`backly web\` to load it`, "ok");
     }
   } finally { $("updBtn").disabled = false; }
 };
