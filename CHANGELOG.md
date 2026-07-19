@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.1 — 2026-07-19
+
+- `backly auto` now rejects intervals under a minute; `0m` previously produced a timer that re-fired immediately, looping backups against the drive
+- Interval names tolerate surrounding whitespace, so `"weekly "` is accepted like `"45 m"` already was
+- Rejected intervals say whether the value was unparseable or simply too short
+
 ## v1.1.0 — 2026-07-19
 
 - Consolidated snapshot metadata into a single `stats.json` per project, instead of two JSON files per snapshot cluttering the vault
