@@ -10,7 +10,7 @@ import {
 } from "../lib/ui.js";
 import { exists, copyDir, syncDir, getDirSize, hasChanges, buildFileMap } from "../lib/engine.js";
 import {
-  loadCfg, saveCfg, driveStatus, editEntry, MODES, effectiveMode, readManifest, writeManifest, manifestPath,
+  loadCfg, saveCfg, driveStatus, editEntry, MODES, effectiveMode, readManifest, saveSnapshot, dropSnapshot, renameSnapshot,
   resolveEntries, resolveStorage, snapshotsFor, updateGlobalDataLog,
 } from "../lib/vault.js";
 import { scheduleStatus, scheduleOn, scheduleOff } from "../lib/schedule.js";
@@ -127,15 +127,14 @@ async function cmdBackup(token) {
         dir = path.join(projectDestDir, ts);
         try {
           await rename(target, dir);
-          await rm(path.join(projectDestDir, `${snaps[0].stamp}.json`), { force: true });
-          await rm(manifestPath(cfg.dest, e.name, snaps[0].stamp), { force: true });
+          await renameSnapshot(cfg.dest, e.name, snaps[0].stamp, ts);
         } catch (err) { console.log("    " + c.yellow("! bump failed: ") + c.dim(err.message)); continue; }
       }
       const size = await getDirSize(dir);
-      await writeFile(path.join(projectDestDir, `${ts}.json`), JSON.stringify({
+      await saveSnapshot(cfg.dest, e.name, ts, {
         size, mtime: new Date().toISOString(), created: snaps[0].created,
-      }, null, 2) + "\n");
-      await writeManifest(cfg.dest, e.name, ts, await buildFileMap(e.path, excludes));
+        files: await buildFileMap(e.path, excludes),
+      });
       events.push({ label: `${e.name}/${ts}`, size, note: "MIRROR UPDATE" });
       totalBytes += size; mirrored++;
       console.log("    " + ok + c.green("  mirrored ") +
@@ -159,15 +158,13 @@ async function cmdBackup(token) {
         const newMetaPath = path.join(projectDestDir, `${ts}.json`);
         try {
           await rename(latestSnapshot, newSnapshotDir);
-          await rename(manifestPath(cfg.dest, e.name, snaps[0].stamp),
-            manifestPath(cfg.dest, e.name, ts)).catch(() => {});
-
-          await rm(oldMetaPath, { force: true });
-          await writeFile(newMetaPath, JSON.stringify({
+          await renameSnapshot(cfg.dest, e.name, snaps[0].stamp, ts);
+          await saveSnapshot(cfg.dest, e.name, ts, {
             size: snaps[0].size,
             mtime: new Date().toISOString(),
             created: snaps[0].created,
-          }, null, 2) + "\n");
+            files: await readManifest(cfg.dest, e.name, ts).then((m) => m ?? undefined),
+          });
         } catch (err) {
           console.log("    " + c.yellow("! bump failed: ") + c.dim(err.message));
           continue;
@@ -193,8 +190,9 @@ async function cmdBackup(token) {
 
     const size = await getDirSize(snapshotDir);
     const mtime = new Date().toISOString();
-    await writeFile(path.join(projectDestDir, `${ts}.json`), JSON.stringify({ size, mtime, created: mtime }, null, 2) + "\n");
-    await writeManifest(cfg.dest, e.name, ts, await buildFileMap(e.path, excludes));
+    await saveSnapshot(cfg.dest, e.name, ts, {
+      size, mtime, created: mtime, files: await buildFileMap(e.path, excludes),
+    });
     events.push({ label: `${e.name}/${ts}`, size });
     totalBytes += size; done++;
 
@@ -251,8 +249,9 @@ async function cmdOnce(rawPath, ...rest) {
 
   const size = await getDirSize(snapshotDir);
   const mtime = new Date().toISOString();
-  await writeFile(path.join(cfg.dest, name, `${ts}.json`), JSON.stringify({ size, mtime, created: mtime }, null, 2) + "\n");
-  await writeManifest(cfg.dest, name, ts, await buildFileMap(abs, excludes));
+  await saveSnapshot(cfg.dest, name, ts, {
+    size, mtime, created: mtime, files: await buildFileMap(abs, excludes),
+  });
   await updateGlobalDataLog(cfg, [{ label: `${name}/${ts} (one-time)`, size }], ts);
 
   console.log("    " + dot + " " + c.cyan(shortHome(snapshotDir)) + c.grey("  " + humanSize(size)));
@@ -338,10 +337,8 @@ async function cmdPrune(token, ...rest) {
     if (!stale.length) continue;
     header(`prune ${c.br(e.name)} ${c.dim("· keep " + keep)}`);
     for (const s of stale) {
-      const metaPath = path.join(path.dirname(s.dir), `${s.stamp}.json`);
       await rm(s.dir, { recursive: true, force: true });
-      await rm(metaPath, { force: true }).catch(() => {});
-      await rm(manifestPath(cfg.dest, e.name, s.stamp), { force: true }).catch(() => {});
+      await dropSnapshot(cfg.dest, e.name, s.stamp);
       removed++; freed += s.size;
       console.log("    " + c.red("− ") + c.dim(s.stamp) + c.grey("  " + humanSize(s.size)));
     }
