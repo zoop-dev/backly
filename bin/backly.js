@@ -607,7 +607,16 @@ async function cmdUninstall(...rest) {
   header("uninstalled");
   console.log("    " + ok + c.dim("  removed ") + shortHome(root));
   if (alsoConfig) console.log("    " + ok + c.dim("  removed settings"));
-  console.log("    " + dot + c.green("  your backups are untouched: ") + c.cyan(shortHome(cfg.dest)) + "\n");
+  console.log("    " + dot + c.green("  your backups are untouched: ") + c.cyan(shortHome(cfg.dest)));
+
+  const shell = path.basename(process.env.SHELL || "");
+  if (shell !== "fish") {
+    const cmd = /^(t?csh)$/.test(shell) ? "rehash" : "hash -r";
+    console.log("\n    " + dot + c.dim(" your shell still has ") + c.cyan("backly") +
+      c.dim(" cached — clear it with:"));
+    console.log("        " + c.cyan(cmd));
+  }
+  console.log();
 }
 
 async function cmdWeb(...rest) {
