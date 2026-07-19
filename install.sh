@@ -2,6 +2,7 @@
 set -eu
 
 REPO_URL="https://github.com/zoop-dev/backly.git"
+TARBALL_URL="https://codeload.github.com/zoop-dev/backly/tar.gz/refs/heads/main"
 MIN_NODE=18
 
 say()  { printf '  %s\n' "$*"; }
@@ -26,17 +27,33 @@ trap cleanup EXIT INT TERM
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd) || SCRIPT_DIR=""
 
+download() {
+  if command -v curl >/dev/null 2>&1; then curl -fsSL "$1" -o "$2"
+  elif command -v wget >/dev/null 2>&1; then wget -qO "$2" "$1"
+  else return 1
+  fi
+}
+
 if [ -f "$0" ] && [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/bin/backly.js" ]; then
   SRC="$SCRIPT_DIR"
   ok "installing from $SRC"
 else
-  command -v git >/dev/null 2>&1 || die "git is required to fetch backly"
   TMP=$(mktemp -d)
   SRC="$TMP"
   say "fetching backly…"
-  git clone --depth 1 "$REPO_URL" "$SRC" >/dev/null 2>&1 || die "clone failed: $REPO_URL"
-  ok "fetched"
+  if command -v tar >/dev/null 2>&1 && download "$TARBALL_URL" "$TMP/src.tar.gz" 2>/dev/null; then
+    tar -xzf "$TMP/src.tar.gz" -C "$TMP" --strip-components=1 || die "could not unpack the download"
+    rm -f "$TMP/src.tar.gz"
+    ok "fetched"
+  elif command -v git >/dev/null 2>&1; then
+    git clone --depth 1 "$REPO_URL" "$SRC" >/dev/null 2>&1 || die "clone failed: $REPO_URL"
+    ok "fetched (git)"
+  else
+    die "need curl or wget (plus tar), or git, to fetch backly"
+  fi
 fi
+
+[ -f "$SRC/bin/backly.js" ] || die "download looks incomplete — no bin/backly.js"
 
 if [ "$(id -u)" -eq 0 ]; then
   LIBDIR="/usr/local/lib/backly"

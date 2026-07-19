@@ -12,7 +12,8 @@ backly web
 
 ## Install
 
-Requires Node 18+. No dependencies.
+Requires Node 18+. No dependencies, and no git needed — the installer fetches a
+tarball with curl or wget.
 
 ```bash
 git clone https://github.com/zoop-dev/backly.git
