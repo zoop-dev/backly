@@ -14,6 +14,15 @@ printf '\n  \033[38;2;77;163;255m┌─────┐\033[0m\n'
 printf '  \033[38;2;77;163;255m│ ▓▓▓ │\033[0m  backly installer\n'
 printf '  \033[38;2;77;163;255m└─────┘\033[0m\n\n'
 
+FORCE=0
+for arg in "$@"; do
+  case "$arg" in
+    -f|--force) FORCE=1 ;;
+    -h|--help) say "usage: install.sh [--force]"; say "  --force  reinstall over an existing install"; exit 0 ;;
+    *) die "unknown option: $arg" ;;
+  esac
+done
+
 SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
 
@@ -79,6 +88,28 @@ else
   fi
 fi
 
+if [ "$(id -u)" -eq 0 ]; then
+  LIBDIR="/usr/local/lib/backly"
+  BINDIR="/usr/local/bin"
+else
+  LIBDIR="${XDG_DATA_HOME:-$HOME/.local/share}/backly"
+  BINDIR="$HOME/.local/bin"
+fi
+
+# Fail before downloading anything, and point at the supported upgrade path.
+if [ "$FORCE" -eq 0 ] && { [ -d "$LIBDIR" ] || command -v backly >/dev/null 2>&1; }; then
+  INSTALLED_AT="$LIBDIR"
+  [ -d "$LIBDIR" ] || INSTALLED_AT=$(command -v backly)
+  CUR=""
+  [ -f "$LIBDIR/package.json" ] && CUR=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$LIBDIR/package.json" 2>/dev/null | head -1)
+  warn "backly is already installed${CUR:+ (v$CUR)}"
+  say  "at $INSTALLED_AT"
+  printf '\n  to upgrade:    \033[36mbackly update\033[0m\n'
+  printf '  to remove:     \033[36mbackly uninstall\033[0m\n'
+  printf '  to reinstall:  \033[36mre-run this installer with --force\033[0m\n\n'
+  exit 1
+fi
+
 SRC=""
 TMP=""
 cleanup() { [ -n "$TMP" ] && rm -rf "$TMP"; }
@@ -118,14 +149,6 @@ fi
 # package.json is odd in some way that would make a require() blow up.
 VERSION=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$SRC/package.json" 2>/dev/null | head -1)
 [ -n "$VERSION" ] && ok "backly v$VERSION"
-
-if [ "$(id -u)" -eq 0 ]; then
-  LIBDIR="/usr/local/lib/backly"
-  BINDIR="/usr/local/bin"
-else
-  LIBDIR="${XDG_DATA_HOME:-$HOME/.local/share}/backly"
-  BINDIR="$HOME/.local/bin"
-fi
 
 mkdir -p "$LIBDIR" "$BINDIR"
 rm -rf "$LIBDIR/bin" "$LIBDIR/lib"
