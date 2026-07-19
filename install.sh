@@ -20,13 +20,19 @@ NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
 ok "node v$NODE_MAJOR"
 
 SRC=""
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-if [ -f "$SCRIPT_DIR/bin/backly.js" ]; then
+TMP=""
+cleanup() { [ -n "$TMP" ] && rm -rf "$TMP"; }
+trap cleanup EXIT INT TERM
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd) || SCRIPT_DIR=""
+
+if [ -f "$0" ] && [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/bin/backly.js" ]; then
   SRC="$SCRIPT_DIR"
   ok "installing from $SRC"
 else
   command -v git >/dev/null 2>&1 || die "git is required to fetch backly"
-  SRC=$(mktemp -d)
+  TMP=$(mktemp -d)
+  SRC="$TMP"
   say "fetching backly…"
   git clone --depth 1 "$REPO_URL" "$SRC" >/dev/null 2>&1 || die "clone failed: $REPO_URL"
   ok "fetched"
