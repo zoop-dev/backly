@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>backly</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel-2:#0e141d; --line:#1e2a3a;
+    --ink:#dbe6f3; --mute:#7b8ea6; --dim:#4e6076;
+    --br:#4da3ff; --mag:#be8cff; --ok:#43d18a; --warn:#f0b45e; --bad:#ff6b6b;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.5 var(--mono);-webkit-font-smoothing:antialiased}
+  a{color:var(--br)}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 80px}
+
+  header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+  .mark{width:40px;height:40px;border:1px solid var(--br);border-radius:7px;
+    display:grid;place-items:center;color:var(--br);font-size:17px;
+    box-shadow:0 0 22px rgba(77,163,255,.16)}
+  h1{font-size:19px;margin:0;letter-spacing:.4px}
+  .sub{color:var(--mute);font-size:12px}
+
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+    margin:18px 0;padding:12px 14px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px}
+  .stat{display:flex;gap:7px;align-items:baseline}
+  .stat b{color:var(--br);font-weight:600}
+  .stat span{color:var(--mute);font-size:12px}
+  .grow{flex:1}
+  .pill{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+  .pill.ok{color:var(--ok);border-color:rgba(67,209,138,.35)}
+  .pill.bad{color:var(--bad);border-color:rgba(255,107,107,.35)}
+  .pill.warn{color:var(--warn);border-color:rgba(240,180,94,.35)}
+
+  button{font:inherit;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer;
+    transition:border-color .15s,color .15s,background .15s}
+  button:hover:not(:disabled){border-color:var(--br);color:var(--br)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{border-color:rgba(77,163,255,.5);color:var(--br)}
+  button.danger:hover:not(:disabled){border-color:var(--bad);color:var(--bad)}
+  button.sm{padding:3px 9px;font-size:12px}
+
+  input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);
+    border-radius:7px;padding:6px 10px;min-width:0}
+  input:focus{outline:none;border-color:var(--br)}
+  input::placeholder{color:var(--dim)}
+  select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);
+    border-radius:7px;padding:6px 10px}
+  select:focus{outline:none;border-color:var(--br)}
+  .pill.mirror{color:var(--mag);border-color:rgba(190,140,255,.4)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    margin-bottom:10px;overflow:hidden}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}
+  .row:hover{background:rgba(77,163,255,.04)}
+  .name{font-weight:600;min-width:150px}
+  .path{color:var(--mute);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .meta{color:var(--dim);font-size:12px;white-space:nowrap}
+  .caret{color:var(--dim);transition:transform .15s}
+  .open .caret{transform:rotate(90deg)}
+
+  .body{display:none;border-top:1px solid var(--line);background:var(--panel-2);padding:12px 14px}
+  .open .body{display:block}
+  .snap{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .snap:last-child{border-bottom:none}
+  .snap .s{color:var(--br);font-size:12px;min-width:170px}
+  .actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+
+  #prog{display:none;margin:14px 0;padding:12px 14px;background:var(--panel);
+    border:1px solid rgba(77,163,255,.35);border-radius:10px}
+  #prog.on{display:block}
+  .track{height:5px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:9px}
+  .fill{height:100%;width:0;background:linear-gradient(90deg,#2b7fd4,var(--br));
+    border-radius:99px;transition:width .2s}
+
+  #log{margin-top:22px;background:#070a0e;border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;height:190px;overflow:auto;font-size:12px}
+  #log div{padding:1px 0;color:var(--mute);white-space:pre-wrap;word-break:break-word}
+  #log .ok{color:var(--ok)} #log .warn{color:var(--warn)} #log .error{color:var(--bad)}
+  #vaultlog{margin-top:22px;background:#070a0e;border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;height:190px;overflow:auto;font-size:12px}
+  #vaultlog div{padding:1px 0;color:var(--mute);white-space:pre-wrap;word-break:break-word}
+  #logTabs button.on{border-color:var(--br);color:var(--br)}
+  .edit{display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;
+    padding-top:12px;border-top:1px dashed var(--line)}
+  .edit.on{display:flex}
+  .edit label{font-size:11px;color:var(--dim);display:block;margin-bottom:3px}
+  .t{color:var(--dim)}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);
+    margin:26px 0 10px;font-weight:600}
+  .empty{color:var(--dim);padding:18px;text-align:center}
+  dialog{background:var(--panel);color:var(--ink);border:1px solid var(--br);
+    border-radius:10px;padding:20px;max-width:420px;font:inherit}
+  #browse,#configure{max-width:min(760px,92vw);width:760px}
+  .dirrow{display:flex;align-items:center;gap:9px;padding:5px 7px;border-radius:6px}
+  .dirrow:hover{background:rgba(77,163,255,.06)}
+  .dirrow .nm{flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dirrow.on{background:rgba(77,163,255,.12)}
+  .dirrow input{min-width:auto}
+  .cfgrow{display:flex;gap:8px;align-items:flex-end;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .cfgrow:last-child{border-bottom:none}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  dialog p{color:var(--mute);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark">▓</div>
+    <div>
+      <h1>backly</h1>
+      <div class="sub" id="dest">—</div>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="stat"><b id="nProj">0</b><span>projects</span></div>
+    <div class="stat"><b id="nSnap">0</b><span>snapshots</span></div>
+    <div class="stat"><b id="nSize">0B</b><span>stored</span></div>
+    <span id="drive" class="pill">drive —</span>
+    <div class="grow"></div>
+    <button class="primary" id="backupAll">Back up all</button>
+  </div>
+
+  <div class="bar">
+    <span id="schedPill" class="pill">schedule —</span>
+    <span class="meta" id="schedNext"></span>
+    <div class="grow"></div>
+    <input id="schedIv" placeholder="daily · 6h · 30m" style="width:150px">
+    <button id="schedOn">Turn on</button>
+    <button id="schedOff">Turn off</button>
+  </div>
+
+  <div id="prog">
+    <div style="display:flex;gap:10px;align-items:baseline">
+      <b style="color:var(--br)" id="pTitle">working…</b>
+      <span class="meta" id="pDetail"></span>
+      <div class="grow"></div>
+      <button class="sm danger" id="cancelBtn">Cancel</button>
+    </div>
+    <div class="track"><div class="fill" id="pFill"></div></div>
+  </div>
+
+  <h2>Projects</h2>
+  <div id="list"></div>
+
+  <h2>Vault settings</h2>
+  <div class="bar">
+    <span class="meta">destination</span>
+    <input id="destIn" style="flex:2" placeholder="/media/you/DRIVE/backups">
+    <button id="destBtn">Set</button>
+    <span class="meta">default mode</span>
+    <select id="defMode">
+      <option value="snapshot">snapshot</option>
+      <option value="mirror">mirror</option>
+    </select>
+    <span class="meta">global excludes</span>
+    <input id="exIn" style="flex:2" placeholder="node_modules, dist, *.log">
+    <button id="exBtn">Save</button>
+  </div>
+
+  <h2>One-time snapshot <span class="meta" style="text-transform:none;letter-spacing:0">(not tracked afterwards)</span></h2>
+  <div class="bar">
+    <input id="oncePath" placeholder="/tmp/some-folder" style="flex:2">
+    <input id="onceName" placeholder="name (optional)" style="flex:1">
+    <button id="onceBtn">Snapshot once</button>
+  </div>
+
+  <h2>Track a new folder</h2>
+  <div class="bar">
+    <input id="addPath" placeholder="~/code/my-project" style="flex:2">
+    <input id="addName" placeholder="name (optional)" style="flex:1">
+    <select id="addMode">
+      <option value="default">use default mode</option>
+      <option value="snapshot">snapshot — new copy per change</option>
+      <option value="mirror">mirror — one folder kept in sync</option>
+    </select>
+    <input id="addEx" placeholder="excludes, comma separated" style="flex:1">
+    <button id="addBtn">Add</button>
+    <button class="primary" id="browseBtn">Browse…</button>
+  </div>
+
+  <h2>Activity <span id="logTabs" style="text-transform:none;letter-spacing:0">
+    <button class="sm" id="tabLive">this session</button>
+    <button class="sm" id="tabVault">vault history</button>
+  </span></h2>
+  <div id="log"></div>
+  <div id="vaultlog" style="display:none"></div>
+</div>
+
+<dialog id="browse">
+  <h3 style="margin:0 0 10px">Pick folders</h3>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+    <button class="sm" data-go="~">home</button>
+    <button class="sm" data-go="~/Desktop">Desktop</button>
+    <button class="sm" data-go="~/Documents">Documents</button>
+    <button class="sm" data-go="/">/</button>
+    <div class="grow"></div>
+    <label class="meta" style="display:flex;gap:5px;align-items:center;cursor:pointer">
+      <input type="checkbox" id="showHidden" style="min-width:auto"> hidden
+    </label>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+    <button class="sm" id="upBtn">↑</button>
+    <div id="crumb" class="meta" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"></div>
+  </div>
+  <div id="tree" style="height:280px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px"></div>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+    <span class="meta" id="selCount">nothing selected</span>
+    <div class="grow"></div>
+    <button id="browseCancel">Cancel</button>
+    <button class="primary" id="browseNext">Configure →</button>
+  </div>
+</dialog>
+
+<dialog id="configure">
+  <h3 style="margin:0 0 4px">Configure folders</h3>
+  <p style="margin:0 0 12px">Set a name and any extra exclusions for each.</p>
+  <div id="cfgRows" style="max-height:340px;overflow:auto"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+    <button id="cfgBack">← Back</button>
+    <button class="primary" id="cfgAdd">Add all</button>
+  </div>
+</dialog>
+
+<dialog id="confirm">
+  <h3 style="margin:0 0 8px">Confirm</h3>
+  <p id="cMsg"></p>
+  <p>Type <b id="cWord" style="color:var(--br)"></b> to continue:</p>
+  <input id="cInput" style="width:100%">
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+    <button id="cCancel">Cancel</button>
+    <button class="danger" id="cGo">Confirm</button>
+  </div>
+</dialog>
+
+<script>
+const token = new URLSearchParams(location.search).get("token") || "";
+const H = { "content-type": "application/json", "x-backly-token": token };
+const $ = (id) => document.getElementById(id);
+const fmt = (b) => { const u=["B","KB","MB","GB","TB"]; let i=0,n=b;
+  while(n>=1024&&i<u.length-1){n/=1024;i++;} return n.toFixed(n<10&&i>0?1:0)+u[i]; };
+const ago = (iso) => { const s=(Date.now()-new Date(iso))/1000;
+  if(s<60)return Math.floor(s)+"s"; if(s<3600)return Math.floor(s/60)+"m";
+  if(s<86400)return Math.floor(s/3600)+"h"; return Math.floor(s/86400)+"d"; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+const open = new Set();
+
+async function post(route, body) {
+  const r = await fetch("/api/" + route, { method:"POST", headers:H, body:JSON.stringify(body||{}) });
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok) { logLine(j.error || "request failed", "error"); throw new Error(j.error); }
+  return j;
+}
+
+function logLine(text, level) {
+  const d = document.createElement("div");
+  if (level) d.className = level;
+  d.innerHTML = '<span class="t">' + new Date().toLocaleTimeString() + '</span>  ' + esc(text);
+  $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+function confirmWord(msg, word) {
+  return new Promise((resolve) => {
+    $("cMsg").textContent = msg; $("cWord").textContent = word;
+    $("cInput").value = ""; $("confirm").showModal();
+    const done = (v) => { $("confirm").close(); resolve(v); };
+    $("cGo").onclick = () => done($("cInput").value.trim() === word);
+    $("cCancel").onclick = () => done(false);
+  });
+}
+
+async function refresh() {
+  const r = await fetch("/api/state", { headers:H });
+  if (r.status === 401) { document.body.innerHTML =
+    '<div class="wrap"><h1>backly</h1><p style="color:#ff6b6b">Missing or bad token. ' +
+    'Open the URL printed by <code>backly web</code>.</p></div>'; return; }
+  const s = await r.json();
+
+  $("dest").textContent = s.shortDest;
+  if (document.activeElement !== $("destIn")) $("destIn").value = s.dest;
+  if (document.activeElement !== $("exIn")) $("exIn").value = (s.exclude || []).join(", ");
+  if (document.activeElement !== $("defMode")) $("defMode").value = s.defaultMode || "snapshot";
+  $("nProj").textContent = s.totals.projects;
+  $("nSnap").textContent = s.totals.snapshots;
+  $("nSize").textContent = fmt(s.totals.bytes);
+
+  const d = $("drive");
+  const mp = s.drive.mountpoint ? " · " + s.drive.mountpoint : "";
+  if (!s.drive.guarded) { d.className = "pill"; d.textContent = "drive not guarded"; }
+  else if (s.drive.mounted) { d.className = "pill ok"; d.textContent = "drive mounted" + mp; }
+  else { d.className = "pill bad"; d.textContent = "drive NOT mounted" + mp; }
+
+  const sc = s.schedule || {};
+  const sp = $("schedPill");
+  if (!sc.installed) { sp.className = "pill"; sp.textContent = "schedule off"; }
+  else if (sc.active) { sp.className = "pill ok"; sp.textContent = "schedule on" + (sc.interval ? " · " + sc.interval : ""); }
+  else { sp.className = "pill warn"; sp.textContent = "schedule installed but inactive"; }
+  $("schedNext").textContent = sc.next ? "next: " + sc.next : "";
+  if (sc.interval && !$("schedIv").value) $("schedIv").placeholder = sc.interval;
+
+  $("list").innerHTML = s.projects.length ? "" : '<div class="card empty">No projects tracked yet.</div>';
+  for (const p of s.projects) {
+    const el = document.createElement("div");
+    el.className = "card" + (open.has(p.name) ? " open" : "");
+    const badges =
+      (p.mode === "mirror" ? '<span class="pill mirror">mirror' + (p.modeOwn ? "" : "*") + '</span> ' : "") +
+      (p.orphan ? '<span class="pill warn">unregistered</span> ' : "") +
+      (p.missing ? '<span class="pill bad">path missing</span> ' : "");
+    el.innerHTML =
+      '<div class="row"><span class="caret">▸</span>' +
+      '<span class="name">' + esc(p.name) + '</span>' +
+      '<span class="path">' + esc(p.shortPath || "— no live path —") + '</span>' +
+      badges +
+      '<span class="meta">' + p.snapshots.length + ' snap · ' + fmt(p.totalBytes) + '</span></div>' +
+      '<div class="body">' +
+        (p.exclude.length
+          ? '<div class="meta" style="margin-bottom:8px">skips: ' + esc(p.exclude.join("  ")) + '</div>' : "") +
+        (p.snapshots.length
+          ? p.snapshots.map((sn) =>
+              '<div class="snap"><span class="s">' + esc(sn.stamp) + '</span>' +
+              '<span class="meta">' + ago(sn.mtime) + ' ago · ' + sn.human +
+                (sn.created && sn.created.slice(0,10) !== sn.mtime.slice(0,10)
+                  ? ' · captured ' + esc(sn.created.slice(0,10)) : "") + '</span>' +
+              '<div class="grow"></div>' +
+              '<button class="sm" data-act="restore" data-name="' + esc(p.name) + '" data-stamp="' + esc(sn.stamp) + '">Restore</button>' +
+              '</div>').join("")
+          : '<div class="meta">No snapshots yet.</div>') +
+        '<div class="actions">' +
+          (p.orphan ? "" : '<button class="sm" data-act="backup" data-name="' + esc(p.name) + '">Back up now</button>') +
+          (p.orphan ? "" : '<button class="sm" data-act="editform" data-name="' + esc(p.name) + '">Edit</button>') +
+          '<span class="meta">keep</span>' +
+          '<input class="keep" value="5" style="width:52px;padding:3px 6px">' +
+          '<button class="sm" data-act="prune" data-name="' + esc(p.name) + '">Prune</button>' +
+          '<button class="sm danger" data-act="wipe" data-name="' + esc(p.name) + '">Wipe storage</button>' +
+          (p.orphan ? "" : '<button class="sm danger" data-act="remove" data-name="' + esc(p.name) + '">Untrack</button>') +
+        '</div>' +
+
+        (p.orphan
+          ? '<div class="actions"><span class="meta">unregistered — restore needs a destination:</span>' +
+            '<input class="restoreTo" placeholder="~/code" style="flex:1"></div>'
+          : "") +
+        '<div class="edit" data-for="' + esc(p.name) + '">' +
+          '<div><label>name</label><input class="eName" value="' + esc(p.name) + '"></div>' +
+          '<div style="flex:2"><label>path</label><input class="ePath" style="width:100%" value="' + esc(p.path || "") + '"></div>' +
+          '<div><label>mode</label><select class="eMode">' +
+            '<option value="default"' + (!p.modeOwn ? " selected" : "") + '>use default</option>' +
+            '<option value="snapshot"' + (p.modeOwn && p.mode === "snapshot" ? " selected" : "") + '>snapshot</option>' +
+            '<option value="mirror"' + (p.modeOwn && p.mode === "mirror" ? " selected" : "") + '>mirror</option>' +
+          '</select></div>' +
+          '<div style="flex:1"><label>excludes (comma separated)</label>' +
+            '<input class="eEx" style="width:100%" value="' + esc(p.exclude.join(", ")) + '"></div>' +
+          '<button class="sm primary" data-act="save" data-name="' + esc(p.name) + '">Save</button>' +
+        '</div>' +
+      '</div>';
+    el.querySelector(".row").onclick = () => {
+      open.has(p.name) ? open.delete(p.name) : open.add(p.name);
+      el.classList.toggle("open");
+    };
+    $("list").appendChild(el);
+  }
+}
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  e.stopPropagation();
+  const { act, name, stamp } = b.dataset;
+
+  const card = b.closest(".card");
+
+  if (act === "editform") {
+    card.querySelector(".edit").classList.toggle("on");
+    return;
+  }
+  if (act === "save") {
+    const ex = card.querySelector(".eEx").value.split(",").map((x)=>x.trim()).filter(Boolean);
+    await post("edit", {
+      name,
+      newName: card.querySelector(".eName").value.trim(),
+      path: card.querySelector(".ePath").value.trim(),
+      exclude: ex,
+      mode: card.querySelector(".eMode").value,
+    });
+    open.delete(name);
+    await refresh();
+    return;
+  }
+
+  if (act === "restore") {
+    const toEl = card.querySelector(".restoreTo");
+    const to = toEl ? toEl.value.trim() : "";
+    if (toEl && !to) { logLine("this project is unregistered — enter a destination folder first", "error"); return; }
+    if (!await confirmWord(
+      "This DELETES the folder for '" + name + "' at the destination and replaces it with snapshot " + stamp + ".", name)) return;
+    await post("restore", { name, stamp, to: to || undefined });
+  } else if (act === "wipe") {
+    if (!await confirmWord("This permanently deletes ALL stored snapshots for '" + name + "'.", name)) return;
+    await post("wipe", { name });
+  } else if (act === "remove") {
+    await post("remove", { name }); await refresh();
+  } else if (act === "prune") {
+    const raw = card.querySelector(".keep").value.trim();
+    const keep = parseInt(raw);
+    if (!Number.isInteger(keep) || keep < 0) { logLine("keep must be 0 or more", "error"); return; }
+    if (keep === 0 && !await confirmWord("keep 0 deletes EVERY snapshot for '" + name + "'.", name)) return;
+    await post("prune", { name, keep });
+  } else if (act === "backup") {
+    await post("backup", { target: name });
+  }
+});
+
+$("schedOn").onclick = async () => {
+  await post("schedule", { on: true, interval: $("schedIv").value.trim() || "daily" });
+  refresh();
+};
+$("schedOff").onclick = async () => { await post("schedule", { on: false }); refresh(); };
+
+async function showVaultLog() {
+  const r = await fetch("/api/vaultlog", { headers:H });
+  const { lines = [] } = await r.json().catch(()=>({}));
+  $("vaultlog").innerHTML = lines.length
+    ? lines.map((l) => '<div>' + esc(l) + '</div>').join("")
+    : '<div>No vault history yet.</div>';
+}
+$("tabLive").onclick = () => {
+  $("tabLive").classList.add("on"); $("tabVault").classList.remove("on");
+  $("log").style.display = ""; $("vaultlog").style.display = "none";
+};
+$("tabVault").onclick = async () => {
+  $("tabVault").classList.add("on"); $("tabLive").classList.remove("on");
+  $("log").style.display = "none"; $("vaultlog").style.display = "";
+  await showVaultLog();
+};
+$("tabLive").classList.add("on");
+
+$("backupAll").onclick = () => post("backup", { target: "all" });
+$("cancelBtn").onclick = () => post("cancel", {});
+$("destBtn").onclick = async () => {
+  const dir = $("destIn").value.trim();
+  if (!dir) { logLine("enter a destination folder", "error"); return; }
+  if (!await confirmWord("Point backly at " + dir + "? Existing snapshots stay where they are.", "set")) return;
+  await post("dest", { dir }); refresh();
+};
+$("defMode").onchange = async () => { await post("mode", { mode: $("defMode").value }); refresh(); };
+$("exBtn").onclick = async () => {
+  await post("exclude", { patterns: $("exIn").value.split(",").map((x)=>x.trim()).filter(Boolean) });
+  refresh();
+};
+$("onceBtn").onclick = async () => {
+  await post("once", { path: $("oncePath").value.trim(), name: $("onceName").value.trim() || undefined });
+  $("oncePath").value = $("onceName").value = "";
+};
+$("addBtn").onclick = async () => {
+  await post("add", {
+    path: $("addPath").value.trim(),
+    name: $("addName").value.trim() || undefined,
+    exclude: $("addEx").value.split(",").map((x)=>x.trim()).filter(Boolean),
+    mode: $("addMode").value,
+  });
+  $("addPath").value = $("addName").value = $("addEx").value = "";
+  refresh();
+};
+
+let cwd = null;
+const selected = new Map();
+
+async function browseTo(dir) {
+  const r = await fetch("/api/browse?path=" + encodeURIComponent(dir), { headers:H });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) { logLine(d.error || "can't read folder", "error"); return; }
+  cwd = d;
+  $("crumb").textContent = d.shortPath;
+  $("upBtn").disabled = !d.parent;
+  drawTree();
+}
+
+function drawTree() {
+  const showHidden = $("showHidden").checked;
+  const rows = cwd.entries.filter((e) => showHidden || !e.hidden);
+  $("tree").innerHTML = rows.length ? "" : '<div class="meta" style="padding:10px">no subfolders</div>';
+  for (const e of rows) {
+    const el = document.createElement("div");
+    el.className = "dirrow" + (selected.has(e.path) ? " on" : "");
+    el.innerHTML =
+      '<input type="checkbox"' + (selected.has(e.path) ? " checked" : "") + (e.tracked ? " disabled" : "") + '>' +
+      '<span class="nm">' + esc(e.name) + '</span>' +
+      (e.tracked ? '<span class="pill">already tracked</span>' : '<span class="meta">open →</span>');
+    const box = el.querySelector("input");
+    box.onclick = (ev) => {
+      ev.stopPropagation();
+      if (box.checked) selected.set(e.path, e.name); else selected.delete(e.path);
+      el.classList.toggle("on", box.checked);
+      updateCount();
+    };
+    el.querySelector(".nm").onclick = () => browseTo(e.path);
+    $("tree").appendChild(el);
+  }
+  updateCount();
+}
+function updateCount() {
+  const n = selected.size;
+  $("selCount").textContent = n ? `${n} folder${n>1?"s":""} selected` : "nothing selected";
+  $("browseNext").disabled = !n;
+}
+
+$("browseBtn").onclick = async () => { selected.clear(); await browseTo("~"); $("browse").showModal(); };
+$("upBtn").onclick = () => cwd?.parent && browseTo(cwd.parent);
+$("showHidden").onchange = drawTree;
+$("browseCancel").onclick = () => $("browse").close();
+document.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => browseTo(b.dataset.go));
+
+$("browseNext").onclick = () => {
+  $("cfgRows").innerHTML = "";
+  for (const [p, base] of selected) {
+    const row = document.createElement("div");
+    row.className = "cfgrow";
+    row.dataset.path = p;
+    row.innerHTML =
+      '<div style="flex:2;min-width:0"><label style="font-size:11px;color:var(--dim)">folder</label>' +
+        '<div class="meta" style="overflow:hidden;text-overflow:ellipsis">' + esc(p) + '</div></div>' +
+      '<div><label style="font-size:11px;color:var(--dim)">name</label>' +
+        '<input class="cName" value="' + esc(base) + '"></div>' +
+      '<div style="flex:1"><label style="font-size:11px;color:var(--dim)">extra excludes</label>' +
+        '<input class="cEx" style="width:100%" placeholder="*.db, cache"></div>' +
+      '<div><label style="font-size:11px;color:var(--dim)">mode</label><select class="cMode">' +
+        '<option value="default">default</option><option value="snapshot">snapshot</option>' +
+        '<option value="mirror">mirror</option></select></div>';
+    $("cfgRows").appendChild(row);
+  }
+  $("browse").close();
+  $("configure").showModal();
+};
+$("cfgBack").onclick = () => { $("configure").close(); $("browse").showModal(); };
+
+$("cfgAdd").onclick = async () => {
+  const rows = [...$("cfgRows").querySelectorAll(".cfgrow")];
+  let added = 0;
+  for (const row of rows) {
+    try {
+      await post("add", {
+        path: row.dataset.path,
+        name: row.querySelector(".cName").value.trim() || undefined,
+        exclude: row.querySelector(".cEx").value.split(",").map((x)=>x.trim()).filter(Boolean),
+        mode: row.querySelector(".cMode").value,
+      });
+      added++;
+    } catch {  }
+  }
+  logLine(`added ${added} of ${rows.length} folder(s)`, added === rows.length ? "ok" : "warn");
+  $("configure").close();
+  selected.clear();
+  refresh();
+};
+
+const es = new EventSource("/api/events?token=" + encodeURIComponent(token));
+es.addEventListener("log", (e) => { const d = JSON.parse(e.data); logLine(d.text, d.level); });
+es.addEventListener("job", (e) => {
+  const j = JSON.parse(e.data);
+  const box = $("prog");
+  if (!j || j.status !== "running") {
+    box.classList.remove("on");
+    if (j && j.status) refresh();
+    return;
+  }
+  box.classList.add("on");
+  $("pTitle").textContent = j.message || j.kind;
+  $("cancelBtn").style.display = j.cancellable ? "" : "none";
+  $("cancelBtn").disabled = /cancelling/.test(j.message || "");
+  const p = j.progress;
+  if (p) {
+    $("pFill").style.width = p.percent + "%";
+    $("pDetail").textContent =
+      p.percent + "% · " + fmt(p.copiedBytes) + " / " + fmt(p.totalBytes) +
+      " · " + p.copiedFiles + "/" + p.totalFiles + " files · ETA " + p.etaSec + "s";
+  } else { $("pFill").style.width = "0%"; $("pDetail").textContent = ""; }
+});
+
+refresh();
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>

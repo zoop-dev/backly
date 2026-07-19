@@ -1,0 +1,17 @@
+{
+  "name": "backly",
+  "version": "0.1.0",
+  "description": "A simple code backup CLI — register paths, snapshot them to a local/external dir as compressed archives.",
+  "type": "module",
+  "bin": {
+    "backly": "./bin/backly.js"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
