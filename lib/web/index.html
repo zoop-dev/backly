@@ -162,6 +162,8 @@
     <span class="meta">global excludes</span>
     <input id="exIn" style="flex:2" placeholder="node_modules, dist, *.log">
     <button id="exBtn">Save</button>
+    <div class="grow"></div>
+    <button id="updBtn">Check for updates</button>
   </div>
 
   <h2>One-time snapshot <span class="meta" style="text-transform:none;letter-spacing:0">(not tracked afterwards)</span></h2>
@@ -448,6 +450,16 @@ $("destBtn").onclick = async () => {
   if (!dir) { logLine("enter a destination folder", "error"); return; }
   if (!await confirmWord("Point backly at " + dir + "? Existing snapshots stay where they are.", "set")) return;
   await post("dest", { dir }); refresh();
+};
+$("updBtn").onclick = async () => {
+  $("updBtn").disabled = true;
+  try {
+    const r = await post("update", { apply: false });
+    if (r.changed.length && confirm(`${r.changed.length} file(s) differ. Install the update now?`)) {
+      const a = await post("update", { apply: true });
+      if (a.applied) logLine("update installed — restart `backly web` to load it", "ok");
+    }
+  } finally { $("updBtn").disabled = false; }
 };
 $("defMode").onchange = async () => { await post("mode", { mode: $("defMode").value }); refresh(); };
 $("exBtn").onclick = async () => {

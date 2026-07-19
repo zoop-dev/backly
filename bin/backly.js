@@ -14,6 +14,10 @@ import {
   resolveEntries, resolveStorage, snapshotsFor, updateGlobalDataLog,
 } from "../lib/vault.js";
 import { scheduleStatus, scheduleOn, scheduleOff } from "../lib/schedule.js";
+import {
+  installRoot, isDevCheckout, findLinks, checkUpdate, applyUpdate, removeInstall,
+} from "../lib/selfupdate.js";
+import { CFG_DIR } from "../lib/vault.js";
 
 async function pickProject(cfg, label = "tracked folders") {
   if (!tty || !cfg.paths.length) return null;
@@ -536,6 +540,76 @@ async function cmdMode(value) {
     c.dim(`   applies to ${inherit} project${inherit === 1 ? "" : "s"} without their own mode`) + "\n");
 }
 
+async function cmdUpdate(...rest) {
+  const force = rest.includes("--force") || rest.includes("-f");
+  const root = await installRoot();
+  header("update backly");
+  console.log("\n    " + dot + c.dim(" installed at ") + c.cyan(shortHome(root)));
+
+  if (await isDevCheckout(root)) {
+    console.log("    " + c.yellow("! this looks like a working copy, not an install"));
+    console.log("    " + c.dim("   updating would overwrite your local source with the published build."));
+    console.log("    " + c.dim("   use ") + c.cyan("git pull") + c.dim(" here instead.\n"));
+    if (!force) return;
+    if (!(await confirm("overwrite this working copy anyway?", false))) return;
+  }
+
+  let res;
+  try { res = await checkUpdate(); }
+  catch (err) { die(err.message); }
+
+  if (!res.changed.length) {
+    await rm(res.staged, { recursive: true, force: true }).catch(() => {});
+    console.log("    " + ok + c.green("  already up to date") + "\n");
+    return;
+  }
+  console.log("    " + dot + c.dim(` ${res.changed.length} file(s) differ:`));
+  for (const f of res.changed.slice(0, 8)) console.log("      " + c.grey(f));
+  if (res.changed.length > 8) console.log("      " + c.dim(`… and ${res.changed.length - 8} more`));
+
+  if (!(await confirm("install the new version?", true))) {
+    await rm(res.staged, { recursive: true, force: true }).catch(() => {});
+    console.log("    " + c.dim("aborted.") + "\n");
+    return;
+  }
+  await applyUpdate(res.staged, res.root);
+  header("updated");
+  console.log("    " + ok + c.green(`  ${res.changed.length} file(s) updated`) + c.dim("  · run ") + c.cyan("backly help") + "\n");
+}
+
+async function cmdUninstall(...rest) {
+  const root = await installRoot();
+  const links = await findLinks(root);
+  const cfg = await loadCfg();
+  header("uninstall backly");
+  console.log("\n    " + dot + c.dim(" install:  ") + c.cyan(shortHome(root)));
+  console.log("    " + dot + c.dim(" command:  ") + (links.length ? c.cyan(links.map(shortHome).join(", ")) : c.grey("none found")));
+  console.log("    " + dot + c.dim(" config:   ") + c.cyan(shortHome(CFG_DIR)));
+  console.log("    " + dot + c.dim(" backups:  ") + c.cyan(shortHome(cfg.dest)) + c.green("   (kept)"));
+
+  if (await isDevCheckout(root)) {
+    console.log("\n    " + c.yellow("! this is a working copy — refusing to delete it"));
+    console.log("    " + c.dim("   remove the ") + c.cyan("backly") + c.dim(" symlink by hand, or ") +
+      c.cyan("npm unlink -g backly") + c.dim(".\n"));
+    return;
+  }
+
+  const sched = await scheduleStatus().catch(() => ({ installed: false }));
+  if (sched.installed) console.log("    " + dot + c.dim(" schedule: ") + c.cyan("will be disabled"));
+
+  console.log();
+  if (!(await confirm("remove backly?", false))) { console.log("    " + c.dim("aborted.") + "\n"); return; }
+  const alsoConfig = await confirm("also delete settings (tracked folders, excludes)?", false);
+
+  if (sched.installed) await scheduleOff().catch(() => {});
+  await removeInstall({ root, links, removeConfig: alsoConfig, configDir: CFG_DIR });
+
+  header("uninstalled");
+  console.log("    " + ok + c.dim("  removed ") + shortHome(root));
+  if (alsoConfig) console.log("    " + ok + c.dim("  removed settings"));
+  console.log("    " + dot + c.green("  your backups are untouched: ") + c.cyan(shortHome(cfg.dest)) + "\n");
+}
+
 async function cmdWeb(...rest) {
   let port = 4849;
   for (let i = 0; i < rest.length; i++) {
@@ -577,6 +651,8 @@ function help() {
     ["once <path> [--name n]", "one-time snapshot of an unregistered path"],
     ["auto [on [iv] | off | status]", "schedule backups (daily by default)"],
     ["web [--port N]", "local control panel in your browser"],
+    ["update", "fetch and install the latest version"],
+    ["uninstall", "remove backly (keeps your backups)"],
   ]);
   section("restore & maintain", [
     ["snapshots [name|all]", "list a path's snapshots"],
@@ -615,6 +691,8 @@ const table = {
   auto: () => cmdAuto(...args),
   mode: () => cmdMode(args[0]),
   edit: () => cmdEdit(...args),
+  update: () => cmdUpdate(...args), upgrade: () => cmdUpdate(...args),
+  uninstall: () => cmdUninstall(...args),
   web: () => cmdWeb(...args), ui: () => cmdWeb(...args),
   help: () => help(), "--help": () => help(), "-h": () => help(),
 };
