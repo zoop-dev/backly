@@ -456,8 +456,9 @@ $("updBtn").onclick = async () => {
   $("updBtn").disabled = true;
   try {
     const r = await post("update", { apply: false });
+    const notes = (r.notes || []).map((n) => "  • " + n).join("\n");
     if (r.changed.length && confirm(
-        `v${r.from} → v${r.to}\n${r.changed.length} file(s) differ. Install the update now?`)) {
+        `v${r.from} → v${r.to}\n${notes ? "\n" + notes + "\n" : ""}\n${r.changed.length} file(s) differ. Install the update now?`)) {
       const a = await post("update", { apply: true });
       if (a.applied) logLine(`updated to v${a.to} — restart \`backly web\` to load it`, "ok");
     }

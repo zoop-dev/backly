@@ -18,6 +18,7 @@ import {
   installRoot, isDevCheckout, findLinks, checkUpdate, applyUpdate, removeInstall, currentVersion,
 } from "../lib/selfupdate.js";
 import { CFG_DIR } from "../lib/vault.js";
+import { readChangelog, releaseFor } from "../lib/changelog.js";
 
 async function pickProject(cfg, label = "tracked folders") {
   if (!tty || !cfg.paths.length) return null;
@@ -546,6 +547,29 @@ async function cmdVersion() {
     c.dim("  ·  ") + c.grey(shortHome(root)) + "\n");
 }
 
+function printRelease(r, { indent = "    " } = {}) {
+  console.log(indent + c.bold(c.br("v" + r.version)) + (r.date ? c.dim("  " + r.date) : ""));
+  for (const n of r.notes) console.log(indent + c.grey("  · ") + c.dim(n));
+}
+
+async function cmdChangelog(...rest) {
+  const all = rest.includes("--all") || rest.includes("-a");
+  const wanted = rest.find((a) => !a.startsWith("-"));
+  const releases = await readChangelog(await installRoot());
+  if (!releases.length) die("no changelog found for this install");
+
+  const show = wanted
+    ? releases.filter((r) => r.version === wanted.replace(/^v/, ""))
+    : (all ? releases : releases.slice(0, 3));
+  if (!show.length) die(`no changelog entry for v${wanted.replace(/^v/, "")}`);
+
+  header("changelog");
+  console.log();
+  for (const r of show) { printRelease(r); console.log(); }
+  if (!wanted && !all && releases.length > show.length)
+    console.log("    " + c.dim(`${releases.length - show.length} older release(s) — `) + c.cyan("backly changelog --all") + "\n");
+}
+
 async function cmdUpdate(...rest) {
   const force = rest.includes("--force") || rest.includes("-f");
   const root = await installRoot();
@@ -574,6 +598,9 @@ async function cmdUpdate(...rest) {
   console.log("    " + dot + c.dim(` ${res.changed.length} file(s) differ:`));
   for (const f of res.changed.slice(0, 8)) console.log("      " + c.grey(f));
   if (res.changed.length > 8) console.log("      " + c.dim(`… and ${res.changed.length - 8} more`));
+
+  const incoming = releaseFor(await readChangelog(res.staged), res.to);
+  if (incoming) { console.log(); printRelease(incoming, { indent: "    " }); }
 
   if (!(await confirm("install the new version?", true))) {
     await rm(res.staged, { recursive: true, force: true }).catch(() => {});
@@ -670,6 +697,7 @@ async function help() {
     ["auto [on [iv] | off | status]", "schedule backups (daily by default)"],
     ["web [--port N]", "local control panel in your browser"],
     ["version", "show the installed version"],
+    ["changelog [version|--all]", "what changed in each release"],
     ["update", "fetch and install the latest version"],
     ["uninstall", "remove backly (keeps your backups)"],
   ]);
@@ -711,6 +739,7 @@ const table = {
   mode: () => cmdMode(args[0]),
   edit: () => cmdEdit(...args),
   version: () => cmdVersion(), "--version": () => cmdVersion(), "-v": () => cmdVersion(),
+  changelog: () => cmdChangelog(...args), changes: () => cmdChangelog(...args),
   update: () => cmdUpdate(...args), upgrade: () => cmdUpdate(...args),
   uninstall: () => cmdUninstall(...args),
   web: () => cmdWeb(...args), ui: () => cmdWeb(...args),

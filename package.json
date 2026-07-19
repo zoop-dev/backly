@@ -1,6 +1,6 @@
 {
   "name": "backly",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A small code backup CLI — snapshot or mirror folders to a local drive or NAS, with a local web control panel.",
   "type": "module",
   "bin": {

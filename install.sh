@@ -154,6 +154,7 @@ mkdir -p "$LIBDIR" "$BINDIR"
 rm -rf "$LIBDIR/bin" "$LIBDIR/lib"
 cp -R "$SRC/bin" "$SRC/lib" "$LIBDIR/"
 [ -f "$SRC/package.json" ] && cp "$SRC/package.json" "$LIBDIR/"
+[ -f "$SRC/CHANGELOG.md" ] && cp "$SRC/CHANGELOG.md" "$LIBDIR/"
 chmod +x "$LIBDIR/bin/backly.js"
 
 ln -sf "$LIBDIR/bin/backly.js" "$BINDIR/backly"
